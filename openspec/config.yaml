@@ -1,0 +1,39 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+
+# 全局项目上下文
+context: |
+  1. 交流语言：始终使用中文（简体）与开发者交流。
+  2. 编码风格：所有生成的代码必须包含详细的中文注释。
+  3. 技术栈：前端使用vue3、vite、typescript等。
+  4. 文档要求：所有的 .spec.md 和 .change.md 文档必须使用中文编写。
+
+# 专项规则
+rules:
+  proposal:
+    - 提案内容必须使用中文。
+    - 必须包含“设计思路”和“潜在风险”章节。
+  tasks:
+    # - 将任务拆解为最大 1 小时的工作量。
+    - 任务描述必须清晰，且使用中文。
+  specs:
+    - 规范文档必须涵盖边界情况（Edge Cases）。

@@ -2,7 +2,7 @@
    <div 
         class="task-card" 
         draggable="true"
-        @dragstart="onDragStart($event, task)"
+        @dragstart="onDragStart"
     >
         <div v-if="isEditing" class="edit-area">
             <input
@@ -10,7 +10,7 @@
                 v-model="editingContent"
                 @blur="saveEdit"
                 @keyup.enter="saveEdit"
-                @keyup.esc="canceEdit "
+                @keyup.esc="cancelEdit"
                 type="text"
             />
         </div>
@@ -34,95 +34,120 @@
 
 </template>
 
-<script setup>
-import { ref,nextTick,computed } from 'vue'
-//defineProps:接收父组件传来的数据，task是由父组件传来的一个对象，只负责展示
-const props = defineProps({
-    task: {
-        type: Object,
-        required: true
-    }
+<script setup lang="ts">
+import { ref, nextTick, computed } from 'vue'
+import type { Ref, ComputedRef } from 'vue'
+import type { Task, DragStartPayload, UpdateTaskPayload } from '../types'
+
+// ===== Props 定义 =====
+// defineProps:接收父组件传来的数据，task 是由父组件传来的一个对象，只负责展示
+const props = defineProps<{
+  task: Task
+}>()
+
+// ===== Emits 定义 =====
+// defineEmits:定义可以向父组件发送那些信号
+const emit = defineEmits<{
+  delete: [taskId: string | number]
+  'drag-start': [payload: DragStartPayload]
+  'update-task': [payload: UpdateTaskPayload]
+}>()
+
+// ===== 计算属性 =====
+const priorityLabel: ComputedRef<string> = computed(() => {
+  const map: Record<string, string> = {
+    low: '低',
+    medium: '中',
+    high: '高',
+  }
+  return map[props.task.priority || 'low']
 })
 
-//defineEmits:定义可以向父组件发送那些信号
-//增加任务名更新功能
-const emit = defineEmits(['delete','drag-start','update-task'])
-
-// ===使用computed计算显示文字和CSS类名===
-const priorityLabel = computed(() => {
-    const map = {
-        low: '低',
-        medium: '中',
-        high: '高'
-    }
-    return map[props.task.priority || 'low']
-})
-const priorityClass = computed(() => {
-    return `priority-${props.task.priority || 'low'}`
+const priorityClass: ComputedRef<string> = computed(() => {
+  return `priority-${props.task.priority || 'low'}`
 })
 
-//切换任务优先级
-const togglePriority = () => {
-    const current = props.task.priority || 'low'
-    let next = 'low'
-    // 循环逻辑: low -> medium -> high -> low
-    if (current === 'low') next = 'medium'
-    else if (current === 'medium') next = 'high'
-    else if (current === 'high') next = 'low'
-    emit('update-task',{
-        taskId: props.task.id,
-        key: 'priority',
-        value: next
-    })
+// ===== 状态管理 =====
+const isEditing: Ref<boolean> = ref(false) // 是否处于编辑状态
+const editingContent: Ref<string> = ref('') // 编辑框临时内容
+const inputRef: Ref<HTMLInputElement | null> = ref(null) // 输入框的引用,对应<input>DOM元素
+
+// ===== 方法 =====
+/**
+ * 切换任务优先级
+ */
+const togglePriority = (): void => {
+  const current = props.task.priority || 'low'
+  let next: 'low' | 'medium' | 'high' = 'low'
+  // 循环逻辑: low -> medium -> high -> low
+  if (current === 'low') next = 'medium'
+  else if (current === 'medium') next = 'high'
+  else if (current === 'high') next = 'low'
+  emit('update-task', {
+    taskId: props.task.id,
+    key: 'priority',
+    value: next,
+  })
 }
 
-// ===状态管理===
-const isEditing = ref(false) // 是否处于编辑状态
-const editingContent = ref('') // 编辑框临时内容
-const inputRef = ref(null) // 输入框的引用,对应<input>DOM元素
-
-// 开始编辑
-const startEdit = () => {
-    isEditing.value = true
-    editingContent.value = props.task.content //把现有内容填进输入框
-    //等待输入框挂载到DOM树上，确保输入框已经完成渲染
-    nextTick(() => {
-        inputRef.value?.focus() // 进入编辑状态后自动聚焦输入框
-    })
-}
-//保存编辑结果
-const saveEdit = () => {
-    if(!editingContent.value.trim() || editingContent.value === props.task.content){
-        //如果输入为空或者内容没有变化，直接退出编辑状态
-        isEditing.value = false
-        return
-    }
-    emit('update-task',{
-        taskId: props.task.id, 
-        key: 'content',
-        value: editingContent.value
-    }) //向父组件发送更新事件，携带任务id和新内容
-    isEditing.value = false //退出编辑状态
-}
-// 取消编辑
-const canceEdit = () => {
-    isEditing.value = false;
-    editingContent.value = props.task.content; //重置输入框内容为原内容
+/**
+ * 开始编辑任务
+ */
+const startEdit = (): void => {
+  isEditing.value = true
+  editingContent.value = props.task.content // 把现有内容填进输入框
+  // 等待输入框挂载到DOM树上，确保输入框已经完成渲染
+  nextTick(() => {
+    inputRef.value?.focus() // 进入编辑状态后自动聚焦输入框
+  })
 }
 
-
-//点击删除任务
-const onDelete = () => {
-    //向父组件发送delete事件，并携带任务id作为参数
-    emit('delete', props.task.id)
+/**
+ * 保存编辑结果
+ */
+const saveEdit = (): void => {
+  if (
+    !editingContent.value.trim() ||
+    editingContent.value === props.task.content
+  ) {
+    // 如果输入为空或者内容没有变化，直接退出编辑状态
+    isEditing.value = false
+    return
+  }
+  emit('update-task', {
+    taskId: props.task.id,
+    key: 'content',
+    value: editingContent.value,
+  }) // 向父组件发送更新事件，携带任务id和新内容
+  isEditing.value = false // 退出编辑状态
 }
 
-//开始拖动任务时
-const onDragStart = (event) => {
-    // 向外发送drag-start 事件，把原生的 event 和我的 task 传出去
-    emit('drag-start',{event,task:props.task})
+/**
+ * 取消编辑
+ */
+const cancelEdit = (): void => {
+  isEditing.value = false
+  editingContent.value = props.task.content // 重置输入框内容为原内容
 }
 
+/**
+ * 点击删除任务
+ */
+const onDelete = (): void => {
+  // 向父组件发送delete事件，并携带任务id作为参数
+  emit('delete', props.task.id)
+}
+
+/**
+ * 开始拖动任务时
+ */
+const onDragStart = (event: DragEvent): void => {
+  // 向外发送drag-start 事件，把原生的 event 和我的 task 传出去
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+  emit('drag-start', { event, task: props.task })
+}
 </script>
 
 <style scoped>
