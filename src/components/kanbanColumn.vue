@@ -28,57 +28,78 @@
     </div>
 
 </template>
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
+import type { ComputedRef } from 'vue'
 import TaskCard from './TaskCard.vue'
-// 接收父组件传来的 colunmId title 和该列的任务列表
-const props = defineProps({
-    columnId: {
-        type: String,
-        required: true
-    },
-    title: {
-        type: String,
-        required: true
-    },
-    list: {
-        type: Array,
-        required: true
-    }
-})
+import type { Task, UpdateTaskPayload, DragStartPayload, DropPayload } from '../types'
+
+// ===== Props 定义 =====
+// 接收父组件传来的 columnId title 和该列的任务列表
+const props = defineProps<{
+  columnId: string
+  title: string
+  list: Task[]
+}>()
+
+// ===== Emits 定义 =====
 // 定义可以向父组件发送的事件
-const emit = defineEmits(['drop-task', 'delete-task', 'drag-start-task','update-task'])
-// 优先级权重
-const priorityMap = {
-    high: 3,
-    medium: 2,
-    low: 1
+const emit = defineEmits<{
+  'drop-task': [payload: DropPayload]
+  'delete-task': [taskId: string | number]
+  'drag-start-task': [payload: DragStartPayload]
+  'update-task': [payload: UpdateTaskPayload]
+}>()
+
+// ===== 优先级权重映射 =====
+const priorityMap: Record<'high' | 'medium' | 'low', number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
 }
-// 排序后的列表
-const sortedList = computed(() => {
-    return [...props.list].sort((a,b) => {
-        const p1 = priorityMap[a.priority || 'low']
-        const p2 = priorityMap[b.priority || 'low']
-        return p2 - p1 // 优先级高的排前面
-    })
+
+// ===== 计算属性 =====
+/**
+ * 按优先级排序的任务列表
+ */
+const sortedList: ComputedRef<Task[]> = computed(() => {
+  return [...props.list].sort((a, b) => {
+    const p1 = priorityMap[a.priority || 'low']
+    const p2 = priorityMap[b.priority || 'low']
+    return p2 - p1 // 优先级高的排前面
+  })
 })
-// 子组件TaskCard告诉要删除任务，继续向上汇报
-const onDeleteTask = (taskId) => {
-    emit('delete-task', taskId)
+
+// ===== 事件处理器 =====
+/**
+ * 子组件 TaskCard 告诉要删除任务，继续向上汇报
+ */
+const onDeleteTask = (taskId: string | number): void => {
+  emit('delete-task', taskId)
 }
-// 中转更新事件
-const onUpdateTask = (payload) => {
-    // payload 结构是 { taskId:  newContent:  } 原封不动上传
-    emit('update-task', payload)
+
+/**
+ * 中转更新事件
+ */
+const onUpdateTask = (payload: UpdateTaskPayload): void => {
+  // payload 结构是 { taskId, key, value } 原封不动上传
+  emit('update-task', payload)
 }
-const onDragStartTask = (payload) => {
+
+/**
+ * 中转拖动开始事件
+ */
+const onDragStartTask = (payload: DragStartPayload): void => {
   emit('drag-start-task', payload)
 }
 
-const onDrop = (event) => {
-    emit('drop-task', { event, columnId: props.columnId })
+/**
+ * 处理任务放下事件
+ */
+const onDrop = (event: DragEvent): void => {
+  event.preventDefault()
+  emit('drop-task', { event, columnId: props.columnId as 'todo' | 'doing' | 'done' })
 }
-
 </script>
 <style scoped>
 /* 每个列的样式 */
